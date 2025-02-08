@@ -1,0 +1,19 @@
+triple_whale_shop_id: # shop_id
+triple_whale_token: # token_string
+triple_whale_user_id: # user_id
+triple_whale_shop_domain: # shop_domain
+triple_whale_git_sha: # git_sha
+triple_whale_datadog_parent_id: # datadog_parent_id
+triple_whale_datadog_trace_id: # datadog_trace_id
+triple_whale_accounts_ids:
+  facebook-ads: # facebook_account_id
+  google-ads: # google_account_id
+  tiktok-ads: # tiktok_account_id
+  shopify: # shopify_account_id
+  google_analytics: # google_analytics_account_id
+  amazon: # amazon_account_id
+  pixel: # pixel_account_id
+  georgias: # georgias_account_id
+  shipstation: # shipstation_account_id
+  klaviyo: # klaviyo_account_id
+  netsuite: # netsuite_account_id
