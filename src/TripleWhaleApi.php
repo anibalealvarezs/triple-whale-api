@@ -38,7 +38,7 @@ class TripleWhaleApi extends BearerTokenClient
         $this->shopId = $shopId;
         $this->user = $user;
         $this->shopDomain = $shopDomain;
-        return parent::__construct(
+        parent::__construct(
             baseUrl: 'https://app.triplewhale.com/api/v2/',
             token: $token,
             authSettings: [
@@ -60,6 +60,9 @@ class TripleWhaleApi extends BearerTokenClient
                 "host" => "api.triplewhale.com",
             ],
         );
+
+        $this->setResponseErrorDetector('message');
+        $this->setErrorMessageParser(fn ($data) => $data['message'] ?? ($data['error'] ?? json_encode($data)));
     }
 
     /**
@@ -72,7 +75,7 @@ class TripleWhaleApi extends BearerTokenClient
         int $page = 0,
         string $timezone = "America/Chicago",
     ): array {
-        $body =[
+        $body = [
             "page" => $page,
             "timezone" => $timezone,
             "shopId" => $this->shopId,
@@ -102,7 +105,7 @@ class TripleWhaleApi extends BearerTokenClient
         string $timezone = "America/Chicago",
         array $accountIds = [],
     ): array {
-        $body =[
+        $body = [
             "shopDomain" => $this->shopId,
             "model" => "lastPlatformClick-v2",
             "dateModel" => "eventDate",
@@ -110,7 +113,7 @@ class TripleWhaleApi extends BearerTokenClient
             "endDate" => Carbon::parse($endDate)->toIso8601String(),
             "currency" => "USD",
             "shopCurrency" => "USD",
-            "accountIds" => array_filter($accountIds, fn($account) => !empty($account)),
+            "accountIds" => array_filter($accountIds, fn ($account) => !empty($account)),
             "timezone" => $timezone,
             "includeOneDayFacebookView" => false,
             "attributionWindow" => "lifetime",
