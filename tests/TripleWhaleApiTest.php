@@ -2,72 +2,183 @@
 
 namespace Tests;
 
-use Carbon\Carbon;
 use Anibalealvarezs\TripleWhaleApi\TripleWhaleApi;
 use Faker\Factory;
 use Faker\Generator;
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Yaml\Yaml;
+use Anibalealvarezs\ApiSkeleton\Classes\Exceptions\ApiRequestException;
 
 class TripleWhaleApiTest extends TestCase
 {
-    private TripleWhaleApi $netSuiteApi;
+    private TripleWhaleApi $tripleWhaleApi;
     private Generator $faker;
 
     /**
-     * @throws GuzzleException
+     * @param MockHandler $mock
+     * @return GuzzleClient
      */
+    protected function createMockedGuzzleClient(MockHandler $mock): GuzzleClient
+    {
+        $handlerStack = HandlerStack::create($mock);
+        return new GuzzleClient(['handler' => $handlerStack]);
+    }
+
     protected function setUp(): void
     {
-        $config = Yaml::parseFile(__DIR__ . "/../config/config.yaml");
-        $this->netSuiteApi = new NetSuiteApi(
-            consumerId: $config['netsuite_consumer_id'],
-            consumerSecret: $config['netsuite_consumer_secret'],
-            token: $config['netsuite_token_id'],
-            tokenSecret: $config['netsuite_token_secret'],
-            accountId: $config['netsuite_account_id'],
+        $this->tripleWhaleApi = new TripleWhaleApi(
+            token: 'token',
+            shopId: 'shop-id',
+            user: 'user',
+            shopDomain: 'test-shop.com',
+            gitSha: 'sha',
+            datadogParentId: 'parent',
+            datadogTraceId: 'trace',
         );
         $this->faker = Factory::create();
     }
 
     public function testConstruct(): void
     {
-        $this->assertInstanceOf(NetSuiteApi::class, $this->netSuiteApi);
+        $this->assertInstanceOf(TripleWhaleApi::class, $this->tripleWhaleApi);
     }
 
     /**
      * @throws GuzzleException
      */
-    public function testGetSalesOrders(): void
+    public function testGetActivitiesAll(): void
     {
-        $salesOrders = $this->netSuiteApi->getSalesOrders(
-            limit: $this->faker->numberBetween(1, 1000)
+        $response1 = [
+            'activities' => [['id' => 1]],
+            'totalPages' => 2
+        ];
+        $response2 = [
+            'activities' => [['id' => 2]],
+            'totalPages' => 2
+        ];
+
+        $mock = new MockHandler([
+            new Response(200, [], json_encode($response1)),
+            new Response(200, [], json_encode($response2)),
+        ]);
+        $guzzle = $this->createMockedGuzzleClient($mock);
+
+        $client = new TripleWhaleApi(
+            token: 'token',
+            shopId: 'shop-id',
+            user: 'user',
+            shopDomain: 'test-shop.com',
+            gitSha: 'sha',
+            datadogParentId: 'parent',
+            datadogTraceId: 'trace',
+            guzzleClient: $guzzle
         );
 
-        $this->assertIsArray($salesOrders);
-        $this->assertArrayHasKey('links', $salesOrders);
-        $this->assertArrayHasKey('count', $salesOrders);
-        $this->assertArrayHasKey('hasMore', $salesOrders);
-        $this->assertArrayHasKey('items', $salesOrders);
-        $this->assertIsArray($salesOrders['items']);
+        $result = $client->getActivitiesAll();
+
+        $this->assertCount(2, $result['activities']);
+        $this->assertEquals(1, $result['activities'][0]['id']);
+        $this->assertEquals(2, $result['activities'][1]['id']);
     }
 
     /**
      * @throws GuzzleException
      */
-    public function testGetSuiteQLQuery(): void
+    public function testGetActivitiesAllAndProcess(): void
     {
-        $result = $this->netSuiteApi->getSuiteQLQuery(
-            query: "SELECT transaction.id FROM transaction WHERE ( transaction.Type = 'SalesOrd' )",
-            limit: $this->faker->numberBetween(1, 1000)
+        $response1 = [
+            'activities' => [['id' => 1]],
+            'totalPages' => 2
+        ];
+        $response2 = [
+            'activities' => [['id' => 2]],
+            'totalPages' => 2
+        ];
+
+        $mock = new MockHandler([
+            new Response(200, [], json_encode($response1)),
+            new Response(200, [], json_encode($response2)),
+        ]);
+        $guzzle = $this->createMockedGuzzleClient($mock);
+
+        $client = new TripleWhaleApi(
+            token: 'token',
+            shopId: 'shop-id',
+            user: 'user',
+            shopDomain: 'test-shop.com',
+            gitSha: 'sha',
+            datadogParentId: 'parent',
+            datadogTraceId: 'trace',
+            guzzleClient: $guzzle
         );
 
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('links', $result);
-        $this->assertArrayHasKey('count', $result);
-        $this->assertArrayHasKey('hasMore', $result);
-        $this->assertArrayHasKey('items', $result);
-        $this->assertIsArray($result['items']);
+        $processedCount = 0;
+        $client->getActivitiesAllAndProcess(function ($data) use (&$processedCount) {
+            $processedCount += count($data);
+        });
+
+        $this->assertEquals(2, $processedCount);
+    }
+
+    /**
+     * @throws GuzzleException
+     */
+    public function testGetActivitiesAllEmpty(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], json_encode(['activities' => [], 'totalPages' => 0])),
+        ]);
+        $guzzle = $this->createMockedGuzzleClient($mock);
+
+        $client = new TripleWhaleApi(
+            token: 'token',
+            shopId: 'shop-id',
+            user: 'user',
+            shopDomain: 'test-shop.com',
+            gitSha: 'sha',
+            datadogParentId: 'parent',
+            datadogTraceId: 'trace',
+            guzzleClient: $guzzle
+        );
+
+        $result = $client->getActivitiesAll();
+        
+        $this->assertCount(0, $result['activities']);
+    }
+
+    /**
+     * @throws GuzzleException
+     */
+    public function testGetActivitiesAllErrorMidLoop(): void
+    {
+        $response1 = [
+            'activities' => [['id' => 1]],
+            'totalPages' => 2
+        ];
+
+        $mock = new MockHandler([
+            new Response(200, [], json_encode($response1)),
+            new Response(500, [], 'Internal Server Error'),
+        ]);
+        $guzzle = $this->createMockedGuzzleClient($mock);
+
+        $client = new TripleWhaleApi(
+            token: 'token',
+            shopId: 'shop-id',
+            user: 'user',
+            shopDomain: 'test-shop.com',
+            gitSha: 'sha',
+            datadogParentId: 'parent',
+            datadogTraceId: 'trace',
+            guzzleClient: $guzzle
+        );
+
+        $this->expectException(ApiRequestException::class);
+
+        $client->getActivitiesAllAndProcess(function ($data) {});
     }
 }
