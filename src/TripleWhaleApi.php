@@ -22,6 +22,7 @@ class TripleWhaleApi extends BearerTokenClient
      * @param string $datadogTraceId
      * @param string $datadogOrigin
      * @param string $datadogSamplingPriority
+     * @param \GuzzleHttp\Client|null $guzzleClient
      * @throws GuzzleException
      */
     public function __construct(
@@ -34,6 +35,7 @@ class TripleWhaleApi extends BearerTokenClient
         string $datadogTraceId,
         string $datadogOrigin = "rum",
         string $datadogSamplingPriority = "1",
+        ?\GuzzleHttp\Client $guzzleClient = null,
     ) {
         $this->shopId = $shopId;
         $this->user = $user;
@@ -59,6 +61,7 @@ class TripleWhaleApi extends BearerTokenClient
                 "x-datadog-sampling-priority" => $datadogSamplingPriority,
                 "host" => "api.triplewhale.com",
             ],
+            guzzleClient: $guzzleClient,
         );
 
         $this->setResponseErrorDetector('message');
@@ -90,6 +93,52 @@ class TripleWhaleApi extends BearerTokenClient
         // Return response
         return json_decode($response->getBody()->getContents(), true);
     }
+
+    /**
+     * @param string $timezone
+     * @return array
+     * @throws GuzzleException
+     */
+    public function getActivitiesAll(
+        string $timezone = "America/Chicago",
+    ): array {
+        $page = 0;
+        $allActivities = [];
+        do {
+            $response = $this->getActivities($page, $timezone);
+            if (empty($response['activities'])) {
+                break;
+            }
+            $allActivities = array_merge($allActivities, $response['activities']);
+            $totalPages = $response['total_pages'] ?? ($response['totalPages'] ?? 0);
+            $page++;
+        } while ($page < $totalPages);
+
+        return ['activities' => $allActivities];
+    }
+
+    /**
+     * @param callable $callback
+     * @param string $timezone
+     * @return void
+     * @throws GuzzleException
+     */
+    public function getActivitiesAllAndProcess(
+        callable $callback,
+        string $timezone = "America/Chicago",
+    ): void {
+        $page = 0;
+        do {
+            $response = $this->getActivities($page, $timezone);
+            if (empty($response['activities'])) {
+                break;
+            }
+            $callback($response['activities']);
+            $totalPages = $response['total_pages'] ?? ($response['totalPages'] ?? 0);
+            $page++;
+        } while ($page < $totalPages);
+    }
+
 
     /**
      * @param string $startDate
